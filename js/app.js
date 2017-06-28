@@ -4,6 +4,8 @@
 	$('#showAll').click(showAll);
 	$('#showActive').click(showActive);
 	$('#showInActive').click(showInActive);
+	$('#loginbtn').click(login);
+	$('#registerbtn').click(register);
 	$("#modal_trigger").leanModal({
 		top: 100,
 		overlay: 0.6,
@@ -55,30 +57,50 @@
 		$(this).addClass('selected');
 	}
 
-})(window);
+	function login() {
+		var $username = $('#username-login').val();
+		var $password = $('#password-login').val();
+		console.log($username);
+		$.ajax({
+			type : 'POST',
+			url  : 'http://user.backend/login',
+			data : {
+				'username': $username,
+				'password': $password
+			},
+			success: function(json) {
+				var data = json.parse();
+				console.log(data);
+				if (data['status'] === 'ok') {
+					localStorage.setItem('token', data['sid']);
+				}
+			}
+		});
+	}
 
-$(function() {
-	// Calling Login Form
-	$("#login_form").click(function() {
+	function register()
+	{
+
+	}
+
+	$("#login_form").click(function () {
 		$(".social_login").hide();
 		$(".user_login").show();
 		return false;
 	});
 
-	// Calling Register Form
-	$("#register_form").click(function() {
+	$("#register_form").click(function () {
 		$(".social_login").hide();
 		$(".user_register").show();
 		$(".header_title").text('Register');
 		return false;
 	});
 
-	// Going back to Social Forms
-	$(".back_btn").click(function() {
+	$(".back_btn").click(function () {
 		$(".user_login").hide();
 		$(".user_register").hide();
 		$(".social_login").show();
 		$(".header_title").text('Login');
 		return false;
 	});
-});
+})(window);
