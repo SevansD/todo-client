@@ -1,4 +1,5 @@
 (function (window) {
+	load();
 	'use strict';
 	$('.toggle-all').click(toggleAll);
 	$('#showAll').click(showAll);
@@ -18,8 +19,44 @@
 			if (!$(this).hasClass('completed')) {
 				todo.addClass('completed');
 				todo.find('.toggle').attr('checked', true);
+				var token = localStorage.getItem('token');
+				if (token !== undefined) {
+					$.ajax({
+						type: 'POST',
+						url: 'http://todos.backend/api/markAsCompleted',
+						data: {
+							'id' : $(this).data('id'),
+							'token':token,
+							'userName': localStorage.getItem('uname'),
+							'userId': localStorage.getItem('uid')
+						}
+					});
+				}
 			}
 		});
+	}
+
+	function load() {
+		var token = localStorage.getItem('token');
+		var uid = localStorage.getItem('uid');
+		if (token !== undefined && uid !== undefined) {
+			$.ajax({
+				type: 'GET',
+				data: {
+					'token':token,
+					'userName': localStorage.getItem('uname'),
+					'userId': localStorage.getItem('uid')
+				},
+				url: 'http://todos.backend/api/getAll',
+				success: function(json) {
+					var data = jQuery.parseJSON(json);
+					console.log(data);
+					data.each(function(element) {
+
+					});
+				}
+			});
+		}
 	}
 
 	function showActive() {
@@ -60,7 +97,6 @@
 	function login() {
 		var $username = $('#username-login').val();
 		var $password = $('#password-login').val();
-		console.log($username);
 		$.ajax({
 			type : 'POST',
 			url  : 'http://user.backend/login',
@@ -69,18 +105,60 @@
 				'password': $password
 			},
 			success: function(json) {
-				var data = json.parse();
-				console.log(data);
+				var data = jQuery.parseJSON(json);
 				if (data['status'] === 'ok') {
-					localStorage.setItem('token', data['sid']);
+					setData(data);
+					$('.modal_close').click();
+					load();
+				} else {
+					alert(data['error']);
 				}
+			},
+			error: function(json) {
+				var data = jQuery.parseJSON(json.responseText);
+				showError(data['errors']);
 			}
 		});
 	}
 
 	function register()
 	{
+		var $username = $('#username-reg').val();
+		var $password = $('#password-reg').val();
+		$.ajax({
+			type : 'POST',
+			url  : 'http://user.backend/register',
+			data : {
+				'username': $username,
+				'password': $password
+			},
+			success: function(json) {
+				var data = jQuery.parseJSON(json);
+				if (data['status'] === 'ok') {
+					setData(data);
+					$('.modal_close').click();
+					load();
+				} else {
+					alert(data['error']);
+				}
+			},
+			error: function(json) {
+				var data = jQuery.parseJSON(json.responseText);
+				showError(data['errors']);
+			}
+		});
+	}
 
+	function setData(data)
+	{
+		localStorage.setItem('token', data['sid']);
+		localStorage.setItem('uid', data['userId']);
+		localStorage.setItem('uname', data['userName']);
+	}
+
+	function showError(error)
+	{
+		alert("You field " + error[0] + " has error: " + error[1]);
 	}
 
 	$("#login_form").click(function () {
