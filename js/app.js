@@ -42,10 +42,10 @@
 		if (token !== undefined && uid !== undefined) {
 			$.ajax({
 				type: 'GET',
-				data: {
-					'token':token,
-					'userName': localStorage.getItem('uname'),
-					'userId': localStorage.getItem('uid')
+				header: {
+				'userId': localStorage.getItem('uid'),
+				'userName': localStorage.getItem('uname'),
+				'token': token
 				},
 				url: 'http://todos.backend/api/getAll',
 				success: function(json) {
