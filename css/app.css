@@ -9,6 +9,11 @@ remove this file if not
 .login {
 	float: right;
 	cursor: pointer;
+	border: 1px solid #DDD;
+	border-radius: 4px;
+}
+.user {
+	text-align: right;
 }
 body {
 	font-family: 'Source Sans Pro', sans-serif;
@@ -42,12 +47,11 @@ h1 {
 	background: #FFF;
 }
 
-#modal_trigger {
+.bottom-link {
 	margin: 50px -100px;
 	width: 200px;
 	display: block;
-	border: 1px solid #DDD;
-	border-radius: 4px;
+	float: right;
 	color: gray;
 	text-decoration: none;
 }

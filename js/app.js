@@ -1,12 +1,26 @@
+(function ($) {
+	$.fn.onEnter = function (func) {
+		this.bind('keypress', function (e) {
+			if (e.keyCode == 13) func.apply(this, [e]);
+		});
+		return this;
+	};
+})(jQuery);
 (function (window) {
 	load();
 	'use strict';
+	var $todo = $('.todo-list');
+	$todo.on('click', '.toggle', toggle);
+	$todo.on('click', '.destroy', destroy);
 	$('.toggle-all').click(toggleAll);
 	$('#showAll').click(showAll);
 	$('#showActive').click(showActive);
 	$('#showInActive').click(showInActive);
 	$('#loginbtn').click(login);
 	$('#registerbtn').click(register);
+	$('#logout').click(logout);
+	$('.new-todo').onEnter(createNew);
+	$('.clear-completed').click(clearCompleted);
 	$("#modal_trigger").leanModal({
 		top: 100,
 		overlay: 0.6,
@@ -14,49 +28,152 @@
 	});
 
 	function toggleAll() {
-		var todo = $('.todo-list').children('li:not(.completed)');
-		todo.each(function () {
+		var $todo = $('.todo-list').children('li:not(.completed)');
+		$todo.each(function () {
 			if (!$(this).hasClass('completed')) {
-				todo.addClass('completed');
-				todo.find('.toggle').attr('checked', true);
-				var token = localStorage.getItem('token');
-				if (token !== undefined) {
-					$.ajax({
-						type: 'POST',
-						url: 'http://todos.backend/api/markAsCompleted',
-						data: {
-							'id' : $(this).data('id'),
-							'token':token,
-							'userName': localStorage.getItem('uname'),
-							'userId': localStorage.getItem('uid')
-						}
-					});
-				}
+				$(this).addClass('completed');
+				$(this).find('.toggle').attr('checked', true);
+				markAsCompleted($(this).data('id'))
 			}
 		});
+		updateTodoCounter();
+	}
+
+	function toggle() {
+		var $todo = $(this).parent().parent();
+		var status = $(this).prop( "checked" );
+		switch (status) {
+			case false:
+				markAsUnCompleted($todo.data('id'));
+				$todo.removeClass('completed');
+				break;
+			case true:
+				markAsCompleted($todo.data('id'));
+				$todo.addClass('completed');
+				break;
+		}
+	}
+
+	function markAsCompleted(id) {
+		var token = localStorage.getItem('token');
+		var uid = localStorage.getItem('uid');
+		var user = localStorage.getItem('uname');
+
+		if (token !== undefined) {
+			$.ajax({
+				type: 'POST',
+				headers: {
+					'X-UserId': uid,
+					'X-UserName': user,
+					'X-Token': token
+				},
+				url: 'http://todos.backend/api/markAsCompleted',
+				data: {
+					'id': id
+				}
+			});
+		}
+	}
+
+	function markAsUnCompleted(id) {
+		var token = localStorage.getItem('token');
+		var uid = localStorage.getItem('uid');
+		var user = localStorage.getItem('uname');
+
+		if (token !== undefined) {
+			$.ajax({
+				type: 'POST',
+				headers: {
+					'X-UserId': uid,
+					'X-UserName': user,
+					'X-Token': token
+				},
+				url: 'http://todos.backend/api/markAsUnCompleted',
+				data: {
+					'id': id
+				}
+			});
+		}
+	}
+
+	function logIn(user) {
+		$('#modal_trigger').hide();
+		var $user = $('.user');
+		$user.children('span').html('Hello ' + user);
+		$user.show();
+	}
+
+	function createNew() {
+		showAll();
+		var token = localStorage.getItem('token');
+		var uid = localStorage.getItem('uid');
+		var user = localStorage.getItem('uname');
+		if (token !== undefined && uid !== undefined && token !== null && uid !== null) {
+			$.ajax({
+				type: 'POST',
+				headers: {
+					'X-UserId': uid,
+					'X-UserName': user,
+					'X-Token': token
+				},
+				data: {
+					'message': $(this).val()
+				},
+				url: 'http://todos.backend/api/create',
+				success: function (json) {
+					var data = jQuery.parseJSON(json);
+					if (data['id'] !== undefined) {
+						createTodo(data['id'], data['message'], data['isCompleted']);
+					}
+				}
+			});
+		}
 	}
 
 	function load() {
 		var token = localStorage.getItem('token');
 		var uid = localStorage.getItem('uid');
-		if (token !== undefined && uid !== undefined) {
+		var user = localStorage.getItem('uname');
+		if (user !== undefined && user !== null) {
+			logIn(user);
+		}
+		if (token !== undefined && uid !== undefined && token !== null && uid !== null) {
 			$.ajax({
 				type: 'GET',
-				header: {
-				'userId': localStorage.getItem('uid'),
-				'userName': localStorage.getItem('uname'),
-				'token': token
+				headers: {
+					'X-UserId': uid,
+					'X-UserName': user,
+					'X-Token': token
 				},
 				url: 'http://todos.backend/api/getAll',
-				success: function(json) {
+				success: function (json) {
 					var data = jQuery.parseJSON(json);
-					console.log(data);
-					data.each(function(element) {
-
-					});
+					if (data['items'] !== undefined) {
+						data['items'].forEach(function (element) {
+							createTodo(element['id'], element['message'], element['isCompleted']);
+						});
+					}
 				}
 			});
 		}
+	}
+
+	function createTodo(id, text, isCompleted) {
+		var $todolist = $('.todo-list');
+		$todolist.append('<li class="' + (isCompleted === "1" ? 'completed' : '') + '" data-id="' + id + '">' +
+			'<div class="view">' +
+			'<input class="toggle" type="checkbox" ' + (isCompleted === "1" ? 'checked' : '') + '>' +
+			'<label>' + text + '</label>' +
+			'<button class="destroy"></button>' +
+			'</div>\n' +
+			'<input class="edit" value="' + text + '">' +
+			'</li>');
+		$('.new-todo').val('');
+		updateTodoCounter();
+	}
+
+	function updateTodoCounter() {
+		$('.todo-count>strong').html($('.todo-list li:not(.completed)').length);
 	}
 
 	function showActive() {
@@ -98,66 +215,120 @@
 		var $username = $('#username-login').val();
 		var $password = $('#password-login').val();
 		$.ajax({
-			type : 'POST',
-			url  : 'http://user.backend/login',
-			data : {
+			type: 'POST',
+			url: 'http://user.backend/login',
+			data: {
 				'username': $username,
 				'password': $password
 			},
-			success: function(json) {
+			success: function (json) {
 				var data = jQuery.parseJSON(json);
 				if (data['status'] === 'ok') {
 					setData(data);
 					$('.modal_close').click();
+					logIn(data['userName']);
 					load();
 				} else {
 					alert(data['error']);
 				}
 			},
-			error: function(json) {
+			error: function (json) {
 				var data = jQuery.parseJSON(json.responseText);
 				showError(data['errors']);
 			}
 		});
 	}
 
-	function register()
-	{
+	function logout() {
+		localStorage.clear();
+		$('#modal_trigger').show();
+		var $user = $('.user');
+		$user.children('span').html();
+		$user.hide();
+	}
+
+	function register() {
 		var $username = $('#username-reg').val();
 		var $password = $('#password-reg').val();
 		$.ajax({
-			type : 'POST',
-			url  : 'http://user.backend/register',
-			data : {
+			type: 'POST',
+			url: 'http://user.backend/register',
+			data: {
 				'username': $username,
 				'password': $password
 			},
-			success: function(json) {
+			success: function (json) {
 				var data = jQuery.parseJSON(json);
 				if (data['status'] === 'ok') {
 					setData(data);
 					$('.modal_close').click();
+					logIn(data['userName']);
 					load();
 				} else {
 					alert(data['error']);
 				}
 			},
-			error: function(json) {
+			error: function (json) {
 				var data = jQuery.parseJSON(json.responseText);
 				showError(data['errors']);
 			}
 		});
 	}
 
-	function setData(data)
-	{
+	function destroy() {
+		var $parent = $(this).parent().parent();
+		var token = localStorage.getItem('token');
+		var uid = localStorage.getItem('uid');
+		var user = localStorage.getItem('uname');
+		if (token !== undefined) {
+			$.ajax({
+				type: 'DELETE',
+				url: 'http://todos.backend/api/delete/' + $parent.data('id'),
+				headers: {
+					'X-UserId': uid,
+					'X-UserName': user,
+					'X-Token': token
+				},
+				success: function() {
+					$parent.remove();
+					updateTodoCounter();
+				}
+			});
+		}
+	}
+
+	function clearCompleted() {
+		var $elements = $todo.children('.completed');
+		var token = localStorage.getItem('token');
+		var uid = localStorage.getItem('uid');
+		var user = localStorage.getItem('uname');
+		$elements.each(function() {
+			if (token !== undefined) {
+				var element = $(this);
+				$.ajax({
+					type: 'DELETE',
+					url: 'http://todos.backend/api/delete/' + $(this).data('id'),
+					headers: {
+						'X-UserId': uid,
+						'X-UserName': user,
+						'X-Token': token
+					},
+					success: function() {
+						element.remove();
+						updateTodoCounter();
+					}
+				});
+			}
+		});
+	}
+
+	function setData(data) {
 		localStorage.setItem('token', data['sid']);
 		localStorage.setItem('uid', data['userId']);
 		localStorage.setItem('uname', data['userName']);
 	}
 
-	function showError(error)
-	{
+	function showError(error) {
 		alert("You field " + error[0] + " has error: " + error[1]);
 	}
 
