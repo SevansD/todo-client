@@ -9,9 +9,14 @@
 (function (window) {
 	load();
 	'use strict';
+	// Dynamic
 	var $todo = $('.todo-list');
 	$todo.on('click', '.toggle', toggle);
 	$todo.on('click', '.destroy', destroy);
+	$todo.on('dblclick', '.element', updateStart);
+	$todo.on('focusout', '.edit', updateFinish);
+	$todo.on('onEnter', '.edit', updateFinish);
+
 	$('.toggle-all').click(toggleAll);
 	$('#showAll').click(showAll);
 	$('#showActive').click(showActive);
@@ -19,8 +24,9 @@
 	$('#loginbtn').click(login);
 	$('#registerbtn').click(register);
 	$('#logout').click(logout);
-	$('.new-todo').onEnter(createNew);
 	$('.clear-completed').click(clearCompleted);
+
+	$('.new-todo').onEnter(createNew);
 	$("#modal_trigger").leanModal({
 		top: 100,
 		overlay: 0.6,
@@ -160,10 +166,10 @@
 
 	function createTodo(id, text, isCompleted) {
 		var $todolist = $('.todo-list');
-		$todolist.append('<li class="' + (isCompleted === "1" ? 'completed' : '') + '" data-id="' + id + '">' +
+		$todolist.append('<li class="' + (isCompleted === '1' ? 'completed ' : '') + 'element" data-id="' + id + '">' +
 			'<div class="view">' +
 			'<input class="toggle" type="checkbox" ' + (isCompleted === "1" ? 'checked' : '') + '>' +
-			'<label>' + text + '</label>' +
+			'<label class="todo-label">' + text + '</label>' +
 			'<button class="destroy"></button>' +
 			'</div>\n' +
 			'<input class="edit" value="' + text + '">' +
@@ -292,6 +298,43 @@
 				success: function() {
 					$parent.remove();
 					updateTodoCounter();
+				}
+			});
+		}
+	}
+
+	function updateStart() {
+		var $edit = $(this).children('.edit');
+		$edit.show();
+		$edit.focus();
+		var val = $edit.val();
+		$edit.val('');
+		$edit.val(val);
+		$(this).children('.view').hide();
+	}
+
+	function updateFinish() {
+		$(this).hide();
+		var $children = $(this).parent().children('.view');
+		var $label = $children.children('.todo-label');
+		var oldVal = $label.html();
+		$label.html($(this).val());
+		$children.show();
+		var token = localStorage.getItem('token');
+		var uid = localStorage.getItem('uid');
+		var user = localStorage.getItem('uname');
+		if (token !== undefined && String($(this).val()) !== String(oldVal)) {
+			$.ajax({
+				type: 'POST',
+				url: 'http://todos.backend/api/update',
+				headers: {
+					'X-UserId': uid,
+					'X-UserName': user,
+					'X-Token': token
+				},
+				data: {
+					'id': $(this).parent().data('id'),
+					'message': $(this).val()
 				}
 			});
 		}
